@@ -8,9 +8,28 @@ if (process.stdin.setEncoding) {
   process.stdin.setEncoding('utf8');
 }
 
-// Available Gemini models as of July 2025
+// Available Gemini models as of September 2026
 const GEMINI_MODELS = {
-  // Thinking models (2.5 series) - latest and most capable
+  // 3.x series - latest and most capable
+  'gemini-3.1-pro-preview': {
+    description: 'Most capable model, best for complex reasoning and coding',
+    features: ['thinking', 'function_calling', 'json_mode', 'grounding', 'system_instructions'],
+    contextWindow: 2000000,
+    thinking: true
+  },
+  'gemini-3.8-flash': {
+    description: 'Latest fast model with best price/performance ratio',
+    features: ['thinking', 'function_calling', 'json_mode', 'grounding', 'system_instructions'],
+    contextWindow: 1000000,
+    thinking: true
+  },
+  'gemini-3.1-flash-lite': {
+    description: 'Ultra-fast, cost-efficient model for high-throughput tasks',
+    features: ['function_calling', 'json_mode', 'system_instructions'],
+    contextWindow: 1000000
+  },
+
+  // Thinking models (2.5 series)
   'gemini-2.5-pro': {
     description: 'Most capable thinking model, best for complex reasoning and coding',
     features: ['thinking', 'function_calling', 'json_mode', 'grounding', 'system_instructions'],
@@ -59,6 +78,11 @@ const GEMINI_MODELS = {
     contextWindow: 1000000
   }
 };
+
+// Respects GEMINI_MODEL env var, falls back to the latest flash model
+const DEFAULT_MODEL = (process.env.GEMINI_MODEL && process.env.GEMINI_MODEL in GEMINI_MODELS)
+  ? process.env.GEMINI_MODEL
+  : 'gemini-3.8-flash';
 
 class EnhancedStdioMCPServer {
   private genAI: GoogleGenAI;
@@ -203,7 +227,7 @@ class EnhancedStdioMCPServer {
               type: 'string',
               description: 'Specific Gemini model to use',
               enum: Object.keys(GEMINI_MODELS),
-              default: 'gemini-2.5-flash'
+              default: DEFAULT_MODEL
             },
             systemInstruction: {
               type: 'string',
@@ -291,8 +315,8 @@ class EnhancedStdioMCPServer {
             model: {
               type: 'string',
               description: 'Vision-capable Gemini model',
-              enum: ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.0-flash'],
-              default: 'gemini-2.5-flash'
+              enum: ['gemini-3.1-pro-preview', 'gemini-3.8-flash', 'gemini-2.5-pro', 'gemini-2.5-flash'],
+              default: DEFAULT_MODEL
             }
           },
           required: ['prompt'],
@@ -316,7 +340,7 @@ class EnhancedStdioMCPServer {
               type: 'string',
               description: 'Model to use for token counting',
               enum: Object.keys(GEMINI_MODELS),
-              default: 'gemini-2.5-flash'
+              default: DEFAULT_MODEL
             }
           },
           required: ['text']
@@ -503,7 +527,7 @@ class EnhancedStdioMCPServer {
 
   private async generateText(id: any, args: any): Promise<MCPResponse> {
     try {
-      const model = args.model || 'gemini-2.5-flash';
+      const model = args.model || DEFAULT_MODEL;
       const modelInfo = GEMINI_MODELS[model as keyof typeof GEMINI_MODELS];
       
       if (!modelInfo) {
@@ -618,7 +642,7 @@ class EnhancedStdioMCPServer {
 
   private async analyzeImage(id: any, args: any): Promise<MCPResponse> {
     try {
-      const model = args.model || 'gemini-2.5-flash';
+      const model = args.model || DEFAULT_MODEL;
 
       // Validate inputs
       if (!args.imageUrl && !args.imageBase64) {
@@ -697,7 +721,7 @@ class EnhancedStdioMCPServer {
 
   private async countTokens(id: any, args: any): Promise<MCPResponse> {
     try {
-      const model = args.model || 'gemini-2.5-flash';
+      const model = args.model || DEFAULT_MODEL;
       
       const result = await this.genAI.models.countTokens({
         model,
